@@ -66,14 +66,14 @@ int main()
             exit(1);
         }
         
-        //Send request to server:
+        //Receive from server:
         if(recv(clientSocket, buffer, 1024, 0) < 0)
         {
                 printf("Unable to receive data. Try again.\n");
         }
         else
         {
-                printf("From server: \t%s\n", buffer);
+                printf("Server Acknowledged. Received message: %s\n", buffer);
         }
     }
 
