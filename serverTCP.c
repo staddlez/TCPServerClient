@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -14,6 +15,9 @@
 #include <arpa/inet.h>
 
 #define PORT 3333
+
+//Globals
+pid_t childPID = -1;
 
 int main(){
 
@@ -23,7 +27,6 @@ int main(){
 	struct sockaddr_in serverAddress;
 	struct sockaddr_in newAddress;
 	socklen_t addrSize;
-	pid_t childpid;
 
 	//Create a new socket:
 	socketCreate = socket(AF_INET, SOCK_STREAM, 0);
@@ -74,7 +77,7 @@ int main(){
 		//Successful in connection:
 		printf("Connection accepted with Client %s:%d\n", inet_ntoa(newAddress.sin_addr), ntohs(newAddress.sin_port));
 		//Fork for new client:
-		if((childpid = fork()) == 0)
+		if((childPID = fork()) == 0)
 		{
 			close(socketCreate);
 			//A while loop within the child, wild!!
@@ -87,7 +90,8 @@ int main(){
 				if(strcmp(buffer, "quit") == 0)
 				{
 					printf("Disconnected from client %s:%d\n", inet_ntoa(newAddress.sin_addr), ntohs(newAddress.sin_port));
-					break;
+                    			break;
+                    			//kill(childPID, SIGKILL);   Kill process commented out - kills entire server.....used break for now.
 				}
 				else
 				{
