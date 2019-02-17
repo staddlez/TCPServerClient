@@ -13,8 +13,12 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <error.h>
+#include <errno.h>
+#include <signal.h>
 
 #define PORT 3333
+#define MAXLINE 4096
 
 //Globals
 pid_t childPID = -1;
@@ -23,7 +27,7 @@ int main(){
 
 	int socketCreate, status;
 	int newSocket;
-	char buffer[1024];
+	char buffer[MAXLINE];
 	struct sockaddr_in serverAddress;
 	struct sockaddr_in newAddress;
 	socklen_t addrSize;
@@ -67,7 +71,8 @@ int main(){
 	}
 
 	//While loop to keep server running:
-	while(1){
+	while(1)
+	{
 		//Create new socket once client tries to connect:
 		newSocket = accept(socketCreate, (struct sockaddr*)&newAddress, &addrSize);
 		if(newSocket < 0)
@@ -76,36 +81,34 @@ int main(){
 		}
 		//Successful in connection:
 		printf("Connection accepted with Client %s:%d\n", inet_ntoa(newAddress.sin_addr), ntohs(newAddress.sin_port));
+				
 		//Fork for new client:
 		if((childPID = fork()) == 0)
 		{
 			close(socketCreate);
 			//A while loop within the child, wild!!
 			while(1)
-			{
+			{				
 				//Receive info from client...
-				recv(newSocket, buffer, 1024, 0);
+				recv(newSocket, buffer, MAXLINE, 0);
 				
 				//If client quits...
 				if(strcmp(buffer, "quit") == 0)
 				{
 					printf("Disconnected from client %s:%d\n", inet_ntoa(newAddress.sin_addr), ntohs(newAddress.sin_port));
-                    			break;
-                    			//kill(childPID, SIGKILL);   Kill process commented out - kills entire server.....used break for now.
+					close(newSocket);
+					break;
+					//kill(childPID, SIGKILL);   Kill process commented out - kills entire server.....used break for now.
 				}
 				else
 				{
-					printf("Client: %s\n", buffer);
+					printf("Received message from Client %s:%d: %s\n", inet_ntoa(newAddress.sin_addr), ntohs(newAddress.sin_port), buffer);
+					//Server to Client: ACK message.
 					send(newSocket, buffer, strlen(buffer), 0);
 					bzero(buffer, sizeof(buffer));
 				}
 			}
 		}
-
 	}
-
-	close(newSocket);
-
-
 	return 0;
 }
