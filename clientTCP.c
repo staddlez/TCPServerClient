@@ -28,27 +28,47 @@ static volatile int keepRunning = 1;
 void intHandler(int dummy)
 {
     keepRunning = 0;
+    printf("Enter any character to kill this client...: ");
+}
+
+void connectInfo(char* inputAddress, int* inputPort)
+{
+		
+	char inputP[5];
+
+		printf("CONNECT to a Server: Enter server IP address (Default 127.0.0.1): ");
+		scanf("%s", &inputAddress[0]);
+		printf("Enter Port # (Default 3333): ");
+		fgets(inputP, sizeof(inputP), stdin);
+		fgets(inputP, sizeof(inputP), stdin);
+		*inputPort = atoi(inputP);
 }
 
 
 //main function - Creates a new client socket.
 int main()
 {
-    int clientSocket, status;
+    int clientSocket, status, endClient = 0;
     struct sockaddr_in serverAddress;
     char buffer[MAXLINE];
 	char inputAddress[16] = "127.0.0.1";
 	int inputPort = PORTNUMBER;
-	char inputP[5], input[2] = "1";
+	char input[2] = "0";
 	char* pos;
+
 	
 	//SIGNAL
 
 	signal(SIGINT, intHandler);
-	
+	while(!endClient)
+{
+
 	//See if they want to connect or exit:
-	printf("1 - Connect to Default Server 127.0.0.1:3333\n2- Input Server Info\n3 - Exit Client\nYour input: ");
-	//fgets(input,sizeof(input),stdin);
+	printf("1 - Connect to Default Server 127.0.0.1:3333\n2 - Input Server Info\n3 - Exit Client\nYour input: ");
+	while(input[0] <= '0')
+	{
+		fgets(input,sizeof(input),stdin);
+	}
 
 	if(input[0] == '3')
 	{
@@ -58,12 +78,7 @@ int main()
 	//Get Connection info
 	if(input[0] ==  '2')
 	{
-		printf("CONNECT to a Server: Enter server IP address (Default 127.0.0.1): ");
-		//fgets(input,sizeof(input),stdin);
-		//fgets(inputAddress,sizeof(inputAddress),stdin);
-		//printf("Enter Port # (Default 3333): ");
-		//fgets(inputP, sizeof(inputP), stdin);
-		//inputPort = atoi(inputP);
+		connectInfo(inputAddress, &inputPort);
 	}
 	
 	fflush(stdin);
@@ -97,25 +112,20 @@ int main()
 	
     //Else we successfully connected:
     printf("Client successfully connected to server.\n");
+
+	input[0] = '0';
     
     //While loop to keep client running while connected to server.
     while(1)
     {		
-		printf("Client to Server: ");
-        //scanf("%s", &buffer[0]);
-		fgets(buffer,MAXLINE,stdin);
+		printf("Client to Server: ");			//ADD YOUR COMMANDS HERE @GROUP
+        	scanf("%s", &buffer[0]);
+		//fgets(buffer,MAXLINE,stdin);
 		
 		//Remove newline:
-		buffer[strcspn(buffer, "\n")] = '\0';
-				
-		//Send message to server:
-		if(write(clientSocket,buffer,strlen(buffer)) == -1)
-		{
-			printf("Error. Unable to send message: %s \n",strerror(errno));
-			close(clientSocket);
-			exit(1);
-		}
-		
+		//buffer[strcspn(buffer, "\n")] = '\0';
+
+
 		//If kill client:
 		if(!keepRunning)
 		{
@@ -125,17 +135,28 @@ int main()
 				close(clientSocket);
 				exit(1);
 			}
-			
+			printf("Disconnected successfully!\n");
+			close(clientSocket);
+			endClient = 1;
+			exit(1);
+		}
+				
+		//Send message to server:
+		if(write(clientSocket,buffer,strlen(buffer)) == -1)
+		{
+			printf("Error. Unable to send message: %s \n",strerror(errno));
 			close(clientSocket);
 			exit(1);
 		}
+		
+
 	
 		//Quit message
 		if(strcmp(buffer, "quit") == 0)
         {
             printf("Disconnected from server.\n");
 			close(clientSocket);
-            exit(1);
+            break;
         }
         
         //Receive from server:
@@ -150,14 +171,15 @@ int main()
 				{
 					printf("Server down.\n");
 					close(clientSocket);
-					exit(1);
+					break;
 				}
                 printf("Received from Server: %s\n", buffer);
         }
     }
 
+}
 
-
+	
 
 }
 
