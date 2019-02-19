@@ -1,9 +1,10 @@
 /******************************************************************
-* Name: Christian Yap, ,
-* Date: 2 - 10 -19
+* Name: Christian Yap, , Alec Allain,
+* Date: 2-10-19
 * Filename: serverTCP.c
 * Description: Server side of TCP connection (multi-threaded server).
 ******************************************************************/
+//Header Files
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,13 +17,18 @@
 #include <error.h>
 #include <errno.h>
 #include <signal.h>
+#include <dirent.h>
 
+//Defines
 #define PORT 3333
 #define MAXLINE 4096
 
 //Globals
 pid_t childPID = -1;
 
+/****************************************************************
+ * Main Function Program
+ ***************************************************************/
 int main(){
 
 	int socketCreate, status;
@@ -31,6 +37,7 @@ int main(){
 	struct sockaddr_in serverAddress;
 	struct sockaddr_in newAddress;
 	socklen_t addrSize;
+	struct dirent *dir;
 
 	//Create a new socket:
 	socketCreate = socket(AF_INET, SOCK_STREAM, 0);
@@ -92,6 +99,26 @@ int main(){
 				//Receive info from client...
 				recv(newSocket, buffer, MAXLINE, 0);
 				
+				//If client wants directory listing
+				if (strcmp(buffer, "list") == 0) {
+					//printf("Recieved '%s' from client", buffer);
+
+					DIR *d = opendir(".");
+					if (d == NULL) {
+						fprintf(stderr, "Cannot open directory...\n");
+					}
+					else if (d) {
+						while ((dir = readdir(d))!= NULL) {
+							printf("%s\n", dir->d_name);
+						}
+					}
+					closedir(d);
+
+					send(newSocket, buffer, strlen(buffer), 0);
+					bzero(buffer, sizeof(buffer));
+				}
+
+
 				//If client quits...
 				if(strcmp(buffer, "quit") == 0)
 				{

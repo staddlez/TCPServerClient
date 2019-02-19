@@ -1,6 +1,6 @@
 /******************************************************************
-* Name: Christian Yap, ,
-* Date: 2 - 10 -19
+* Name: Christian Yap, , Alec Allain, 
+* Date: 2-10-19
 * Filename: clientTCP.c
 * Description: Client side of TCP connection (multi-threaded server).
 ******************************************************************/
@@ -163,6 +163,19 @@ int main()
 				printf("Disconnected from server.\n");
 				close(clientSocket);
 				break;
+			}
+
+			//List message
+			if (strcmp(buffer, "list") == 0) {
+				//printf("Files in server directory:\n");
+
+				if (recv(endSocket, buffer, sizeof(buffer), 0) < 0) {
+					printf("Unable to list directory data\n");
+				}
+				else {
+
+				}
+
 			}
 			
 			//Receive from server:
