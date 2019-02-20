@@ -103,16 +103,26 @@ int main(){
 				if (strcmp(buffer, "list") == 0) {
 					//printf("Recieved '%s' from client", buffer);
 
+					char **names, **temp;
+					size_t i, size = 1;
 					DIR *d = opendir(".");
 					if (d == NULL) {
 						fprintf(stderr, "Cannot open directory...\n");
 					}
 					else if (d) {
 						while ((dir = readdir(d))!= NULL) {
-							printf("%s\n", dir->d_name);
+							names[i] = dir->d_name;
+							i++;
+							if (i > size) {
+								temp = realloc(names, size*2*sizeof(*names));
+								names = temp;
+								size = size * 2;
+							}
 						}
 					}
 					closedir(d);
+
+					strncpy(buffer, *names, MAXLINE);
 
 					send(newSocket, buffer, strlen(buffer), 0);
 					bzero(buffer, sizeof(buffer));

@@ -167,15 +167,15 @@ int main()
 
 			//List message
 			if (strcmp(buffer, "list") == 0) {
-				//printf("Files in server directory:\n");
+				printf("Files in server directory:\n");
 
-				if (recv(endSocket, buffer, sizeof(buffer), 0) < 0) {
+				if (recv(clientSocket, buffer, MAXLINE, 0) < 0) {
 					printf("Unable to list directory data\n");
 				}
 				else {
-
+					printf("%s\n", buffer);
 				}
-
+			//	break;
 			}
 			
 			//Receive from server:
