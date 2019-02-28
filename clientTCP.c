@@ -172,6 +172,7 @@ int main()
 				buffer[4] == 'a' &&
 				buffer[5] == 'd') {
 				printf("Uploading to server...\n");
+				n = -1;
 				//wait for the server's ACK
                 n = recv(clientSocket, buffer, sizeof(buffer), 0);
                 if(n < 0) {

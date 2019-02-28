@@ -108,7 +108,6 @@ int main(){
 					buffer[n] = '\0';
 				}
 				
-				printf("b0 %c\n", buffer[0]);
 				if (buffer[0] == 'u' &&
 					buffer[1] == 'p' &&
 					buffer[2] == 'l' &&
@@ -178,13 +177,13 @@ int main(){
 					}
 					fclose(fp);
 					//catch weird last packet
-                    n = recv(newSocket, buffer, 256, 0);
+                    //n = recv(newSocket, buffer, 256, 0);
                     //clean buffer
 					memset(&buffer, 0 , sizeof(buffer));
 				}
 				
 				//If client wants directory listing
-				if (strcmp(buffer, "list") == 0) {
+				else if (strcmp(buffer, "list") == 0) {
 					//printf("Recieved '%s' from client", buffer);
 
 					char **names, **temp;
@@ -213,7 +212,7 @@ int main(){
 				}
 				
 				//If client quits...
-				if(strcmp(buffer, "quit") == 0)
+				else if(strcmp(buffer, "quit") == 0)
 				{
 					printf("Disconnected from client %s:%d\n", inet_ntoa(newAddress.sin_addr), ntohs(newAddress.sin_port));
 					close(newSocket);
