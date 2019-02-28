@@ -1,7 +1,7 @@
 /******************************************************************
 * Name: Christian Yap, , Alec Allain,
 * Date: 2-10-19
-* Filename: serverTCP.c
+* fn: serverTCP.c
 * Description: Server side of TCP connection (multi-threaded server).
 ******************************************************************/
 //Header Files
@@ -31,13 +31,13 @@ pid_t childPID = -1;
  ***************************************************************/
 int main(){
 
-	int socketCreate, status;
-	int newSocket;
+	int socketCreate, newSocket, status, fileSize;
 	char buffer[MAXLINE];
 	struct sockaddr_in serverAddress;
 	struct sockaddr_in newAddress;
 	socklen_t addrSize;
 	struct dirent *dir;
+	char fileSizeBuffer[256];
 
 	//Create a new socket:
 	socketCreate = socket(AF_INET, SOCK_STREAM, 0);
@@ -93,11 +93,95 @@ int main(){
 		if((childPID = fork()) == 0)
 		{
 			close(socketCreate);
+			int n;
+			
 			//A while loop within the child, wild!!
 			while(1)
 			{				
+				memset(&buffer, 0, sizeof(buffer));
 				//Receive info from client...
-				recv(newSocket, buffer, MAXLINE, 0);
+				n = recv(newSocket, buffer, sizeof(buffer), 0);
+				
+				if (n < 0) {
+					printf("Can't receive from client");
+				} else {
+					buffer[n] = '\0';
+				}
+				
+				printf("b0 %c\n", buffer[0]);
+				if (buffer[0] == 'u' &&
+					buffer[1] == 'p' &&
+					buffer[2] == 'l' &&
+					buffer[3] == 'o' &&
+					buffer[4] == 'a' &&
+					buffer[5] == 'd') {
+				
+					printf("Client Uploading...\n");
+					
+					n = send(newSocket, buffer, sizeof(buffer), 0);
+                    if(n < 0) {
+                        printf("Error sending file ACK\n");
+					} else {
+						printf("File Name get\n");
+					}
+					
+					//Receive File Size
+					memset(&fileSizeBuffer, 0, sizeof(fileSizeBuffer));
+					n = recv(newSocket, fileSizeBuffer, sizeof(fileSizeBuffer), 0);
+                    if(n < 0) {
+						printf("Error receiving file size\n");
+					} else {
+						printf("size should be: %s\n", fileSizeBuffer);
+					}
+					
+					//Send ACK for File Size
+					n = send(newSocket, fileSizeBuffer, sizeof(fileSizeBuffer), 0);
+                    if(n < 0){
+						printf("Error sending ACK for file size\n");
+					} else {
+						printf("File Size ACK sent.\n");
+					}
+					
+					//Parsing input
+					char fn[256];
+					int j = 0;
+					for(int i = 7; i <= strlen(buffer)-1; i++)
+					{
+						fn[j] = buffer[i];
+						j++;
+						//printf("bf: %c\n", buffer[i]);
+					}
+				
+					fn[j] = '\0';
+					fileSize = atoi(fileSizeBuffer);
+					
+					//Writing file
+					memset(&buffer, 0, sizeof(buffer));
+					int remainingData = 0;
+					ssize_t len;
+					FILE* fp;
+					fp = fopen(fn, "wb");
+					remainingData = fileSize;
+					while(remainingData != 0) {
+                        if(remainingData < 256){
+                            len = recv(newSocket, buffer, remainingData, 0);
+                            fwrite(buffer, sizeof(char), len, fp);
+                            remainingData -= len;
+                            printf("Received %lu bytes, expecting %d bytes\n", len, remainingData);
+							break;
+                        } else{
+                            len = recv(newSocket, buffer, 256, 0);
+                            fwrite(buffer, sizeof(char), len, fp);
+                            remainingData -= len;
+                            printf("Received %lu bytes, expecting: %d bytes\n", len, remainingData);
+                        }
+					}
+					fclose(fp);
+					//catch weird last packet
+                    n = recv(newSocket, buffer, 256, 0);
+                    //clean buffer
+					memset(&buffer, 0 , sizeof(buffer));
+				}
 				
 				//If client wants directory listing
 				if (strcmp(buffer, "list") == 0) {
@@ -127,8 +211,7 @@ int main(){
 					send(newSocket, buffer, strlen(buffer), 0);
 					bzero(buffer, sizeof(buffer));
 				}
-
-
+				
 				//If client quits...
 				if(strcmp(buffer, "quit") == 0)
 				{
@@ -144,6 +227,7 @@ int main(){
 					send(newSocket, buffer, strlen(buffer), 0);
 					bzero(buffer, sizeof(buffer));
 				}
+				
 			}
 		}
 	}

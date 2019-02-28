@@ -1,5 +1,5 @@
 /******************************************************************
-* Name: Christian Yap, , Alec Allain, 
+* Name: Christian Yap, , Alec Allain, Anthony Nguyen
 * Date: 2-10-19
 * Filename: clientTCP.c
 * Description: Client side of TCP connection (multi-threaded server).
@@ -62,7 +62,9 @@ int main()
 	char inputAddress[16] = "127.0.0.1";
 	int inputPort = PORTNUMBER;
 	char input[2] = "0";
-	char* pos;
+	//char* pos;
+	char fileSizeBuffer[256];
+	int n;
 
 	
 	//SIGNAL REGISTER
@@ -125,11 +127,16 @@ int main()
 		input[0] = '0';
     
 		//While loop to keep client running while connected to server.
-		while(1)
+		do
 		{		
 			printf("Client to Server: ");			//ADD YOUR COMMANDS HERE @GROUP
-				scanf("%s", &buffer[0]);
-			//fgets(buffer,MAXLINE,stdin);
+			//scanf("%s", &buffer[0]);
+			fgets(buffer, 255, stdin);
+			n = strlen(buffer);
+  
+			if(n > 0 && buffer[n-1] == '\n'){ //line break
+				buffer[n-1] = '\0';
+			}
 			
 			//Remove newline:
 			//buffer[strcspn(buffer, "\n")] = '\0';
@@ -157,6 +164,117 @@ int main()
 				exit(1);
 			}
 			
+			//Upload
+			if (buffer[0] == 'u' &&
+				buffer[1] == 'p' &&
+				buffer[2] == 'l' &&
+				buffer[3] == 'o' &&
+				buffer[4] == 'a' &&
+				buffer[5] == 'd') {
+				printf("Uploading to server...\n");
+				//wait for the server's ACK
+                n = recv(clientSocket, buffer, sizeof(buffer), 0);
+                if(n < 0) {
+                    printf("Server didn't acknowledge name\n");
+				} else {
+					printf("Server ACK'd.\n");
+				}
+				
+				//Parsing input
+				char fn[256];
+				int j = 0;
+				for(int i = 7; i <= strlen(buffer)-1; i++)
+				{
+					fn[j] = buffer[i];
+					j++;
+					//printf("bf: %c\n", buffer[i]);
+				}
+				
+				fn[j] = '\0';
+				
+				int errnum;
+				
+				//open file
+                FILE* fp;
+				fp = fopen(fn, "rb"); //filename, read bytes
+				if(fp == NULL){
+					printf("error opening file in: %s\n", fn);
+					errnum = errno;
+					fprintf(stderr, "Value of errno: %d\n", errno);
+					perror("Error printed by perror");
+					fprintf(stderr, "Error opening file: %s\n", strerror( errnum ));
+				} else {
+					printf("File opened successfully!\n");
+				}
+				
+				//figure out file size:
+				int file_size = 0;
+				if(fseek(fp, 0, SEEK_END) != 0)
+				printf("Error determining file size\n");
+
+				file_size = ftell(fp);
+				rewind(fp);
+				printf("File size: %d bytes\n", file_size);
+				
+				memset(&fileSizeBuffer, 0, sizeof(fileSizeBuffer));
+				sprintf(fileSizeBuffer, "%d", file_size);
+				
+				//send file size
+				n = send(clientSocket, fileSizeBuffer, sizeof(fileSizeBuffer), 0);
+				if(n < 0) {
+					printf("Error sending file size information\n");
+				} else {
+					printf("fileSizeBuffer: %s\n", fileSizeBuffer);
+				}
+				
+				//receive ack for file size
+				n = recv(clientSocket, fileSizeBuffer, sizeof(fileSizeBuffer), 0);
+                if(n < 0) {
+                    printf("Error receiving handshake\n");
+				} else {
+					printf("file size ack get.\n");
+				}
+				
+				//create byte array
+				char byteArray[256];
+				memset(&byteArray, 0, sizeof(byteArray));
+				
+				int buffRead = 0;
+                int bytesRemaining = file_size;
+				
+				while(bytesRemaining != 0)
+                  {
+                       //we fill in the byte array
+                       //with slabs smaller than 256 bytes:
+                       if(bytesRemaining < 256)
+                       {
+                           buffRead = fread(byteArray, 1, bytesRemaining, fp);
+                           bytesRemaining = bytesRemaining - buffRead;
+                           n = send(clientSocket, byteArray, 256, 0);
+                           if(n < 0){
+                                   printf("Error sending small slab\n");
+						   }
+
+                           printf("sent %d slab\n", buffRead);
+                       }
+                       //for slabs of 256 bytes:
+                       else
+                       {
+                           buffRead = fread(byteArray, 1, 256, fp);
+                           bytesRemaining = bytesRemaining - buffRead;
+                           n = send(clientSocket, byteArray, 256, 0);
+                           if(n < 0)
+                                   printf("Error sending slab\n");
+                           printf("sent %d slab\n", buffRead);
+                       }
+                  }
+                  printf("File sent!\n");
+                  //clean buffers
+                  memset(&buffer, 0, sizeof(buffer));
+                  memset(&byteArray, 0, sizeof(byteArray));
+				  fclose(fp);
+			}
+			
 			//Quit message
 			if(strcmp(buffer, "quit") == 0)
 			{
@@ -178,23 +296,7 @@ int main()
 			//	break;
 			}
 			
-			//Receive from server:
-			if(recv(clientSocket, buffer, MAXLINE, 0) < 0)
-			{
-					printf("Unable to receive data. Try again.\n");
-			}
-			else
-			{
-					//If server goes down end connection:
-					if(strcmp(buffer, "kill") == 0)
-					{
-						printf("Server down.\n");
-						close(clientSocket);
-						break;
-					}
-					printf("Received from Server: %s\n", buffer);
-			}
-		}
+		} while(strcmp(buffer, "exit") != 0);
 
 	}
 }
