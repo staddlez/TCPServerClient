@@ -18,6 +18,8 @@
 #include <errno.h>
 #include <signal.h>
 #include <dirent.h>
+#include <sys/stat.h>
+#include <sys/sendfile.h>
 
 //Defines
 #define PORT 3333
@@ -180,6 +182,123 @@ int main(){
                     //n = recv(newSocket, buffer, 256, 0);
                     //clean buffer
 					memset(&buffer, 0 , sizeof(buffer));
+				}
+				
+				
+				
+				else if(buffer[0] == 'r' &&
+						buffer[1] == 'e' &&
+					    buffer[2] == 't' &&
+					    buffer[3] == 'r' &&
+					    buffer[4] == 'i' &&
+					    buffer[5] == 'e' &&
+					    buffer[6] == 'v' &&
+					    buffer[7] == 'e') {
+					
+					printf("...client wants to retrieve file...\n");
+					
+					n = send(newSocket, buffer, sizeof(buffer), 0);
+                    if(n < 0) {
+                        printf("Error sending retrieve ACK\n");
+					} else {
+						printf("File Name get\n");
+					}
+					char fileToSend[256];
+					
+					int j = 0;
+					for(int i = 9; i <= strlen(buffer)-1; i++)
+					{
+						fileToSend[j] = buffer[i];
+						j++;
+						//printf("bf: %c\n", buffer[i]);
+					}
+					fileToSend[j] = '\0';
+					
+				    struct stat file_stat;
+					ssize_t len;    
+					
+					//open file
+					FILE* fd;
+					fd = fopen(fileToSend, "rb");
+                    if(fd == NULL) {
+						printf("Error opening file...\n");
+					} else {
+						printf("...open local file...\n");
+					}
+					
+					printf("...get file stats...\n");
+
+        			/* Get file stats */
+				    int file_size = 0;
+					if(fseek(fd, 0, SEEK_END) != 0)
+					printf("Error determining file size\n");
+
+					file_size = ftell(fd);
+					rewind(fd);
+					printf("File size: %d bytes\n", file_size);
+					
+					memset(&fileSizeBuffer, 0, sizeof(fileSizeBuffer));
+					sprintf(fileSizeBuffer, "%d", file_size);
+					
+					printf("...send file size to client..,\n");
+
+					/* Sending file size */
+					len = send(newSocket, fileSizeBuffer, sizeof(fileSizeBuffer), 0);
+					if (len < 0) {
+						fprintf(stderr, "Error on sending greetings --> %s", strerror(errno));
+					} else {
+						fprintf(stdout, "Server sent %d bytes for the size\n", len);
+					}
+     
+					//receive ack for file size
+					len = recv(newSocket, fileSizeBuffer, sizeof(fileSizeBuffer),0);
+					if(len < 0) {
+						printf("...Error receiving handshake...\n");
+					} else {
+						printf("...Received file size ack...\n");
+					}
+						
+					//create byte array
+					char byteArray[256];
+					memset(&byteArray, 0, sizeof(byteArray));
+				
+					int buffRead = 0;
+					int bytesRemaining = file_size;
+					
+					printf("...now send file data to client...\n");
+					int i = 0;	
+					/* Sending file data */
+					while(bytesRemaining != 0)
+					{
+					   //we fill in the byte array
+					   //with slabs smaller than 256 bytes:
+					   if(bytesRemaining < 256)
+					   {
+						   buffRead = fread(byteArray, 1, bytesRemaining, fd);
+						   bytesRemaining = bytesRemaining - buffRead;
+						   n = send(newSocket, byteArray, 256, 0);
+						   if(n < 0){
+								   printf("Error sending small slab\n");
+						   }
+
+						   printf("sent %d slab\n", buffRead);
+					   }
+					   //for slabs of 256 bytes:
+					   else
+					   {
+						   buffRead = fread(byteArray, 1, 256, fd);
+						   bytesRemaining = bytesRemaining - buffRead;
+						   n = send(newSocket, byteArray, 256, 0);
+						   if(n < 0)
+								   printf("Error sending slab\n");
+						   printf("sent %d slab\n", buffRead);
+					   }
+					}
+				
+					printf("...client has recieved file...\n");
+					memset(&buffer, 0, sizeof(buffer));
+					memset(&byteArray, 0, sizeof(byteArray));
+			        fclose(fd);
 				}
 				
 				//If client wants directory listing

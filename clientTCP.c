@@ -189,8 +189,7 @@ int main()
 					fn[j] = buffer[i];
 					j++;
 					//printf("bf: %c\n", buffer[i]);
-				}
-				
+				}	
 				fn[j] = '\0';
 				
 				int errnum;
@@ -244,36 +243,127 @@ int main()
                 int bytesRemaining = file_size;
 				
 				while(bytesRemaining != 0)
-                  {
-                       //we fill in the byte array
-                       //with slabs smaller than 256 bytes:
-                       if(bytesRemaining < 256)
-                       {
-                           buffRead = fread(byteArray, 1, bytesRemaining, fp);
-                           bytesRemaining = bytesRemaining - buffRead;
-                           n = send(clientSocket, byteArray, 256, 0);
-                           if(n < 0){
-                                   printf("Error sending small slab\n");
-						   }
+			    {
+				   //we fill in the byte array
+				   //with slabs smaller than 256 bytes:
+				   if(bytesRemaining < 256)
+				   {
+					   buffRead = fread(byteArray, 1, bytesRemaining, fp);
+					   bytesRemaining = bytesRemaining - buffRead;
+					   n = send(clientSocket, byteArray, 256, 0);
+					   if(n < 0){
+							   printf("Error sending small slab\n");
+					   }
 
-                           printf("sent %d slab\n", buffRead);
-                       }
-                       //for slabs of 256 bytes:
-                       else
-                       {
-                           buffRead = fread(byteArray, 1, 256, fp);
-                           bytesRemaining = bytesRemaining - buffRead;
-                           n = send(clientSocket, byteArray, 256, 0);
-                           if(n < 0)
-                                   printf("Error sending slab\n");
-                           printf("sent %d slab\n", buffRead);
-                       }
-                  }
-                  printf("File sent!\n");
-                  //clean buffers
-                  memset(&buffer, 0, sizeof(buffer));
-                  memset(&byteArray, 0, sizeof(byteArray));
-				  fclose(fp);
+					   printf("sent %d slab\n", buffRead);
+				   }
+				   //for slabs of 256 bytes:
+				   else
+				   {
+					   buffRead = fread(byteArray, 1, 256, fp);
+					   bytesRemaining = bytesRemaining - buffRead;
+					   n = send(clientSocket, byteArray, 256, 0);
+					   if(n < 0)
+							   printf("Error sending slab\n");
+					   printf("sent %d slab\n", buffRead);
+				   }
+			    }
+			    printf("File sent!\n");
+			    //clean buffers
+			    memset(&buffer, 0, sizeof(buffer));
+			    memset(&byteArray, 0, sizeof(byteArray));
+			    fclose(fp);
+			}
+			
+			if (buffer[0] == 'r' &&
+			    buffer[1] == 'e' &&
+			    buffer[2] == 't' &&
+			    buffer[3] == 'r' &&
+			    buffer[4] == 'i' &&
+			    buffer[5] == 'e' &&
+			    buffer[6] == 'v' &&
+			    buffer[7] == 'e') {	
+				
+				int fileSize;
+				
+				printf("Starting Retrieve process...\n");
+				
+				n = -1;
+				//wait for the server's ACK
+                n = recv(clientSocket, buffer, sizeof(buffer), 0);
+                if(n < 0) {
+                    printf("Server didn't acknowledge name\n");
+				} else {
+					printf("Server ACK'd.\n");
+				}
+				
+				
+				char fName[256];
+				int j = 0;
+				for(int i = 9; i <= strlen(buffer)-1; i++)
+				{
+					fName[j] = buffer[i];
+					j++;
+					//printf("bf: %c\n", buffer[i]);
+				}
+				fName[j] = '\0';
+
+				printf("...lets get buffersize...\n");
+				
+				/* Receiving file size */
+				n = recv(clientSocket, buffer, MAXLINE, 0);
+				fileSize = atoi(buffer);
+				
+				if(n < 0) {
+					printf("Error receiving file size\n");
+				} else {
+					printf("File size : %d\n",fileSize);
+				}
+				
+				//Send ACK for File Size
+				n = send(clientSocket, buffer, sizeof(buffer), 0);
+				if(n < 0){
+					printf("Error sending ACK for file size\n");
+				} else {
+					printf("File Size ACK sent.\n");
+				}
+
+				printf("...Now open new file...\n");
+				
+
+				
+				FILE *receivedFile;
+				int remainData = 0;
+				int readData = 0;
+				int i = 0;
+				remainData = fileSize;
+				ssize_t len;
+				receivedFile = fopen(fName, "wb");
+				
+				printf("...Incoming File Size: %d ...\n",remainData);
+				printf("...Lets read the sentfile...\n");
+
+				for(remainData = fileSize;  remainData > 0;) {
+					if(remainData < 256){
+						len = recv(clientSocket, buffer, remainData, 0);
+						fwrite(buffer, sizeof(char), len, receivedFile);
+						remainData -= len;
+						printf("Received %lu bytes, expecting %d bytes\n", len, remainData);
+						break;
+					} else{
+						len = recv(clientSocket, buffer, 256, 0);
+						fwrite(buffer, sizeof(char), len, receivedFile);
+						remainData -= len;
+						printf("Received %lu bytes, expecting: %d bytes\n", len, remainData);
+					}
+				}
+				fclose(receivedFile);
+					
+				
+				printf("...finished reading file...\n");
+				
+				memset(&buffer, 0 , sizeof(buffer));
+				printf("...file closed...\n");
 			}
 			
 			//Quit message
