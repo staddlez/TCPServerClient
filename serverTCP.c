@@ -302,32 +302,78 @@ int main(){
 				}
 				
 				//If client wants directory listing
-				else if (strcmp(buffer, "list") == 0) {
+				//else if (strcmp(buffer, "list") == 0) {
 					//printf("Recieved '%s' from client", buffer);
 
-					char **names, **temp;
-					size_t i, size = 1;
+					//char **names, **temp;
+					//size_t i, size = 1;
+					//DIR *d = opendir(".");
+					//if (d == NULL) {
+					//	fprintf(stderr, "Cannot open directory...\n");
+					//}
+					//else if (d) {
+					//	while ((dir = readdir(d))!= NULL) {
+					//		names[i] = dir->d_name;
+					//		i++;
+					//		if (i > size) {
+					//			temp = realloc(names, size*2*sizeof(*names));
+					//			names = temp;
+					//			size = size * 2;
+					//		}
+					//	}
+					//}
+
+					//closedir(d);
+					//strncpy(buffer, *names, MAXLINE);
+					//send(newSocket, buffer, strlen(buffer), 0);
+					//bzero(buffer, sizeof(buffer));
+				if (buffer[0] == 'l' && buffer[1] == 'i' && buffer[2] == 's' && buffer[3] == 't') {
+					printf("Client asking for directory listing\n");
+
+					n = send(newSocket, buffer, sizeof(buffer), 0);
+
+					if (n < 0) {
+						fprintf(stderr, "Error sending list\n");
+					} else {
+						printf("Directory get\n");
+					}
+
+					int count, i;
+					//char *names;
 					DIR *d = opendir(".");
-					if (d == NULL) {
-						fprintf(stderr, "Cannot open directory...\n");
-					}
-					else if (d) {
-						while ((dir = readdir(d))!= NULL) {
-							names[i] = dir->d_name;
-							i++;
-							if (i > size) {
-								temp = realloc(names, size*2*sizeof(*names));
-								names = temp;
-								size = size * 2;
-							}
+					//if (d == NULL) {
+					//	fprintf(stderr, "Directory cant open\n");
+					//} else if (d) {
+						while ((dir = readdir(d)) != NULL) {
+							count++;
 						}
-					}
+						
+						rewinddir(d);
+
+						char *names[count];
+
+						//names[count] = temp[count];
+
+						while ((dir = readdir(d)) != NULL) {
+							names[i] = (char*) malloc(strlen(dir->d_name) + 1);
+							strncpy(names[i], dir->d_name, strlen(dir->d_name));
+							i++;
+						}
+
+					//}
+
 					closedir(d);
 
-					strncpy(buffer, *names, MAXLINE);
+					strncpy(buffer, (char*) names, MAXLINE);
+					n = send(newSocket, buffer, sizeof(buffer), 0);
+					if (n < 0) {
+						fprintf(stderr, "Directory couldn't be sent\n");
+					} else {
+						printf("Directory list has been sent\n");
+					}
 
-					send(newSocket, buffer, strlen(buffer), 0);
-					bzero(buffer, sizeof(buffer));
+					memset(&buffer, 0, sizeof(buffer));
+
 				}
 				
 				//If client quits...

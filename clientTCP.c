@@ -16,6 +16,7 @@
 #include <error.h>
 #include <errno.h>
 #include <signal.h>
+#include <dirent.h>
 
 //Defines
 #define PORTNUMBER 3333
@@ -65,6 +66,7 @@ int main()
 	//char* pos;
 	char fileSizeBuffer[256];
 	int n;
+	struct dirent *dir;
 
 	
 	//SIGNAL REGISTER
@@ -375,16 +377,51 @@ int main()
 			}
 
 			//List message
-			if (strcmp(buffer, "list") == 0) {
-				printf("Files in server directory:\n");
+			//if (strcmp(buffer, "list") == 0) {
+				//printf("Files in server directory:\n");
 
-				if (recv(clientSocket, buffer, MAXLINE, 0) < 0) {
-					printf("Unable to list directory data\n");
+				//if (recv(clientSocket, buffer, MAXLINE, 0) < 0) {
+				//	printf("Unable to list directory data\n");
+				//}
+				//else {
+				//	printf("%s\n", buffer);
+				//}
+				//break;
+			if (buffer[0] == 'l' && buffer[1] == 'i' && buffer[2] == 's' && buffer[3] == 't') {
+				printf("Retriving directory list\n");
+				n= -1;
+				n = recv(clientSocket, buffer, sizeof(buffer), 0);
+				
+				if (n < 0) {
+					fprintf(stderr, "Server didn't recieve list request\n");
+				} else {
+					printf("Server ACKd'\n");
 				}
-				else {
-					printf("%s\n", buffer);
+
+				int count, i;
+				
+				DIR *d = opendir(".");
+
+				while ((dir == readdir(d)) != NULL) {
+					count++;
 				}
-			//	break;
+				
+				rewinddir(d);
+
+				char* names[count];
+
+				while ((dir == readdir(d)) != NULL) { 
+					names[i] = (char*) malloc(strlen(dir->d_name) + 1);
+					strncpy(names[i], dir->d_name, strlen(dir->d_name));
+					i++;
+				}
+
+				closedir(d);
+
+				strncpy(buffer, (char*) names, MAXLINE);
+				n = send(clientSocket, buffer, sizeof(buffer), 0);
+
+				memset(&buffer, 0, sizeof(buffer));
 			}
 			
 		} while(strcmp(buffer, "exit") != 0);
