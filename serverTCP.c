@@ -330,7 +330,7 @@ int main(){
 				if (buffer[0] == 'l' && buffer[1] == 'i' && buffer[2] == 's' && buffer[3] == 't') {
 					printf("Client asking for directory listing\n");
 
-					n = send(newSocket, buffer, sizeof(buffer), 0);
+					n = recv(newSocket, buffer, sizeof(buffer), 0);
 
 					if (n < 0) {
 						fprintf(stderr, "Error sending list\n");
@@ -363,6 +363,10 @@ int main(){
 					//}
 
 					closedir(d);
+
+					for (int j = 0; j < i; j++) {
+						printf("%s\n", buffer[i]);
+					}
 
 					strncpy(buffer, (char*) names, MAXLINE);
 					n = send(newSocket, buffer, sizeof(buffer), 0);

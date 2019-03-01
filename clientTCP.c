@@ -390,7 +390,7 @@ int main()
 			if (buffer[0] == 'l' && buffer[1] == 'i' && buffer[2] == 's' && buffer[3] == 't') {
 				printf("Retriving directory list\n");
 				n= -1;
-				n = recv(clientSocket, buffer, sizeof(buffer), 0);
+				n = send(clientSocket, buffer, sizeof(buffer), 0);
 				
 				if (n < 0) {
 					fprintf(stderr, "Server didn't recieve list request\n");
@@ -402,7 +402,7 @@ int main()
 				
 				DIR *d = opendir(".");
 
-				while ((dir == readdir(d)) != NULL) {
+				while ((dir = readdir(d)) != NULL) {
 					count++;
 				}
 				
@@ -410,7 +410,7 @@ int main()
 
 				char* names[count];
 
-				while ((dir == readdir(d)) != NULL) { 
+				while ((dir = readdir(d)) != NULL) { 
 					names[i] = (char*) malloc(strlen(dir->d_name) + 1);
 					strncpy(names[i], dir->d_name, strlen(dir->d_name));
 					i++;
@@ -419,7 +419,17 @@ int main()
 				closedir(d);
 
 				strncpy(buffer, (char*) names, MAXLINE);
-				n = send(clientSocket, buffer, sizeof(buffer), 0);
+				n = recv(clientSocket, buffer, sizeof(buffer), 0);
+
+				if (n < 0) {
+					fprintf(stderr, "Error retrieving listing\n");
+				} else {
+					printf("Directory listing recieved");
+				}
+
+				for (int j = 0; j < i; j++) {
+					printf("%s\n", buffer[i]); 
+				}
 
 				memset(&buffer, 0, sizeof(buffer));
 			}
