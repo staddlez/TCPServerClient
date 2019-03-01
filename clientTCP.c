@@ -1,5 +1,5 @@
 /******************************************************************
-* Name: Christian Yap, , Alec Allain, Anthony Nguyen
+* Name: Christian Yap, Anthony Nguyen, Alec Allain, Joe Dubois
 * Date: 2-10-19
 * Filename: clientTCP.c
 * Description: Client side of TCP connection (multi-threaded server).
@@ -66,7 +66,6 @@ int main()
 	//char* pos;
 	char fileSizeBuffer[256];
 	int n;
-	struct dirent *dir;
 
 	
 	//SIGNAL REGISTER
@@ -246,8 +245,8 @@ int main()
 				
 				while(bytesRemaining != 0)
 			    {
-				   //we fill in the byte array
-				   //with slabs smaller than 256 bytes:
+				   //fill byte arrays
+				   //with segments smaller than 256 bytes:
 				   if(bytesRemaining < 256)
 				   {
 					   buffRead = fread(byteArray, 1, bytesRemaining, fp);
@@ -259,7 +258,7 @@ int main()
 
 					   printf("sent %d slab\n", buffRead);
 				   }
-				   //for slabs of 256 bytes:
+				   //for segments of 256 bytes:
 				   else
 				   {
 					   buffRead = fread(byteArray, 1, 256, fp);
@@ -336,8 +335,7 @@ int main()
 				
 				FILE *receivedFile;
 				int remainData = 0;
-				int readData = 0;
-				int i = 0;
+				//int readData = 0;
 				remainData = fileSize;
 				ssize_t len;
 				receivedFile = fopen(fName, "wb");
@@ -387,49 +385,12 @@ int main()
 				//	printf("%s\n", buffer);
 				//}
 				//break;
-			if (buffer[0] == 'l' && buffer[1] == 'i' && buffer[2] == 's' && buffer[3] == 't') {
-				printf("Retriving directory list\n");
-				n= -1;
-				n = send(clientSocket, buffer, sizeof(buffer), 0);
-				
-				if (n < 0) {
-					fprintf(stderr, "Server didn't recieve list request\n");
-				} else {
-					printf("Server ACKd'\n");
-				}
-
-				int count, i;
-				
-				DIR *d = opendir(".");
-
-				while ((dir = readdir(d)) != NULL) {
-					count++;
-				}
-				
-				rewinddir(d);
-
-				char* names[count];
-
-				while ((dir = readdir(d)) != NULL) { 
-					names[i] = (char*) malloc(strlen(dir->d_name) + 1);
-					strncpy(names[i], dir->d_name, strlen(dir->d_name));
-					i++;
-				}
-
-				closedir(d);
-
-				strncpy(buffer, (char*) names, MAXLINE);
+			if (strcmp(buffer, "list") == 0) {
 				n = recv(clientSocket, buffer, sizeof(buffer), 0);
-
 				if (n < 0) {
-					fprintf(stderr, "Error retrieving listing\n");
-				} else {
-					printf("Directory listing recieved");
+					printf("Could not receive list.");
 				}
-
-				for (int j = 0; j < i; j++) {
-					printf("%s\n", buffer[i]); 
-				}
+				printf("File List: %s\n", buffer);
 
 				memset(&buffer, 0, sizeof(buffer));
 			}

@@ -1,5 +1,5 @@
 /******************************************************************
-* Name: Christian Yap, , Alec Allain,
+* Name: Christian Yap, Anthony Nguyen, Alec Allain, Joe Dubois
 * Date: 2-10-19
 * fn: serverTCP.c
 * Description: Server side of TCP connection (multi-threaded server).
@@ -38,9 +38,11 @@ int main(){
 	struct sockaddr_in serverAddress;
 	struct sockaddr_in newAddress;
 	socklen_t addrSize;
-	struct dirent *dir;
 	char fileSizeBuffer[256];
-
+	DIR *directory;
+	struct dirent *dir;
+	directory = opendir("./");
+	
 	//Create a new socket:
 	socketCreate = socket(AF_INET, SOCK_STREAM, 0);
 	
@@ -214,7 +216,7 @@ int main(){
 					}
 					fileToSend[j] = '\0';
 					
-				    struct stat file_stat;
+				    //struct stat file_stat;
 					ssize_t len;    
 					
 					//open file
@@ -247,7 +249,7 @@ int main(){
 					if (len < 0) {
 						fprintf(stderr, "Error on sending greetings --> %s", strerror(errno));
 					} else {
-						fprintf(stdout, "Server sent %d bytes for the size\n", len);
+						fprintf(stdout, "Server sent %ld bytes for the size\n", len);
 					}
      
 					//receive ack for file size
@@ -265,13 +267,12 @@ int main(){
 					int buffRead = 0;
 					int bytesRemaining = file_size;
 					
-					printf("...now send file data to client...\n");
-					int i = 0;	
+					printf("...now send file data to client...\n");	
 					/* Sending file data */
 					while(bytesRemaining != 0)
 					{
-					   //we fill in the byte array
-					   //with slabs smaller than 256 bytes:
+					   //fill in the byte array
+					   //with segments smaller than 256 bytes:
 					   if(bytesRemaining < 256)
 					   {
 						   buffRead = fread(byteArray, 1, bytesRemaining, fd);
@@ -283,7 +284,7 @@ int main(){
 
 						   printf("sent %d slab\n", buffRead);
 					   }
-					   //for slabs of 256 bytes:
+					   //for segments of 256 bytes:
 					   else
 					   {
 						   buffRead = fread(byteArray, 1, 256, fd);
@@ -327,57 +328,55 @@ int main(){
 					//strncpy(buffer, *names, MAXLINE);
 					//send(newSocket, buffer, strlen(buffer), 0);
 					//bzero(buffer, sizeof(buffer));
-				if (buffer[0] == 'l' && buffer[1] == 'i' && buffer[2] == 's' && buffer[3] == 't') {
+				if (strcmp(buffer, "list") == 0) {
 					printf("Client asking for directory listing\n");
-
-					n = recv(newSocket, buffer, sizeof(buffer), 0);
-
-					if (n < 0) {
-						fprintf(stderr, "Error sending list\n");
-					} else {
-						printf("Directory get\n");
-					}
-
-					int count, i;
-					//char *names;
-					DIR *d = opendir(".");
-					//if (d == NULL) {
-					//	fprintf(stderr, "Directory cant open\n");
-					//} else if (d) {
-						while ((dir = readdir(d)) != NULL) {
-							count++;
+					
+					char filelist[4096];
+					
+					//if dir opens properly
+					if (directory) {
+						
+						while ((dir = readdir(directory)) != NULL) {
+							
+							//if buffer is empty
+							if (sizeof(filelist) == 0) {
+								//ignore . and ..
+								if (strcmp(dir->d_name, ".") == 0 ||
+									strcmp(dir->d_name,"..") == 0) {
+										// do nothing
+									} else {
+										printf("\n%s", dir->d_name);
+										sprintf(filelist, "\n%s", dir->d_name);
+									}
+									
+							} else {
+								//ignore . and ..
+								if (strcmp(dir->d_name, ".") == 0 ||
+									strcmp(dir->d_name,"..") == 0) {
+										//do nothing
+									} else {
+										printf("\n%s", dir->d_name);
+										sprintf(filelist+strlen(filelist), "\n%s", dir->d_name);
+									}
+								
+							}
+						}
+						//Send when all files are accounted for
+						n = send(newSocket, filelist, sizeof(filelist), 0);
+						
+						if (n < 0) {
+							printf("Failed to send list.\n");
 						}
 						
-						rewinddir(d);
-
-						char *names[count];
-
-						//names[count] = temp[count];
-
-						while ((dir = readdir(d)) != NULL) {
-							names[i] = (char*) malloc(strlen(dir->d_name) + 1);
-							strncpy(names[i], dir->d_name, strlen(dir->d_name));
-							i++;
-						}
-
-					//}
-
-					closedir(d);
-
-					for (int j = 0; j < i; j++) {
-						printf("%s\n", buffer[i]);
-					}
-
-					strncpy(buffer, (char*) names, MAXLINE);
-					n = send(newSocket, buffer, sizeof(buffer), 0);
-					if (n < 0) {
-						fprintf(stderr, "Directory couldn't be sent\n");
 					} else {
-						printf("Directory list has been sent\n");
+						//Could not open directory
+						sprintf(filelist, "server could not open directory"); 
+						
 					}
-
-					memset(&buffer, 0, sizeof(buffer));
-
+					
+					//clear filelist and buffer
+					memset(filelist, 0, sizeof(filelist));
+					memset(buffer, 0, sizeof(buffer));
 				}
 				
 				//If client quits...
